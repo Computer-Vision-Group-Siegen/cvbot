@@ -6,8 +6,21 @@ authors = ["Jan Philipp Schneider <jp-schneider@users.noreply.github.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
+python-dotenv = "^1.1.0"
+pydantic = "^2.11.3"
+cvtools = {path = "../cvtools", develop = true}
+cvtxtclient = {path = "../cvtxtclient", develop = true}
+toml = "^0.10.2"
 
+
+[tool.poetry.group.api.dependencies]
+fastapi = "^0.115.12"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+pytest-asyncio = "^0.26.0"
 
 [build-system]
 requires = ["poetry-core"]

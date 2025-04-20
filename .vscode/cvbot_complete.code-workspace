@@ -1,0 +1,23 @@
+{
+  "folders": [
+	{
+		"path": "../../txtapi"
+	},
+	{
+		"path": "../../ft-txt"
+	},
+	{
+		"path": "../../cvtxtclient"
+	},
+	{
+		"path": ".."
+	},
+	{
+		"path": "../../cvtools"
+	},
+	{
+		"path": "../../tools"
+	}
+],
+  "settings": {}
+}
