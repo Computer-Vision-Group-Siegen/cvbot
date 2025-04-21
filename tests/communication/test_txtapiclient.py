@@ -4,6 +4,7 @@ import os
 from ..conftest import session
 
 
+
 @pytest.fixture(scope="session")
 def api_client(session) -> TxtApiClient:
     """Create a TxtApiClient instance."""

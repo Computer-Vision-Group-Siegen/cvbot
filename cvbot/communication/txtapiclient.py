@@ -56,7 +56,6 @@ class TxtApiClient(Controller):
         self.api = TxtApiControllerAPI(self._api_config, session=session)
         self.converter = TxtApiConverter(self)
 
-
     async def discover_devices(self) -> Dict[int, Device]:
         """Triggers a device discovery process.
 
@@ -116,7 +115,6 @@ class TxtApiClient(Controller):
         await asyncio.gather(*(motor_tasks + servo_tasks))
         return devices
 
-
     async def update_motors(self, *device: CounterMotor) -> None:
         """
         Updates the speed of the motors in the api.
@@ -131,7 +129,7 @@ class TxtApiClient(Controller):
             mot, cnt = self.converter.to_api(dev)
             tasks.append(asyncio.create_task(self.api.update_controller_motor_by_id(
                 0, dev.name[-1], mot)))
-        await asyncio.gather(*tasks)
+        return await asyncio.gather(*tasks)
 
     async def update_servomotors(self, *device: Servomotor) -> None:
         """

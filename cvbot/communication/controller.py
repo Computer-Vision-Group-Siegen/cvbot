@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type
 from pydantic import BaseModel, Field
 from cvbot.model.counter_motor import CounterMotor
 from cvbot.model.device import Device
@@ -14,9 +14,14 @@ class Controller:
     _devices: Dict[int, Device]
     """Dictionary of devices, known and managed by the controller."""
 
+    _devices_by_type: Dict[Type[Device], Dict[int, Device]]
+    """Dictionary of devices, known and managed by the controller, grouped by type."""
+
     def __init__(self, **kwargs: Any) -> None:
         """Initialize the CommunicationController with the given parameters."""
-        self._devices = {}
+        self._devices = dict()
+        self._devices_by_type = dict()
+        self._initialized = False
 
     def add_devices(self, *devices: Device) -> None:
         """Adds device to the controller.
@@ -28,6 +33,9 @@ class Controller:
         """
         for device in devices:
             self._devices[device.id] = device
+            if type(device) not in self._devices_by_type:
+                self._devices_by_type[type(device)] = dict()
+            self._devices_by_type[type(device)][device.id] = device
 
     def remove_devices(self, *devices: Device) -> None:
         """Removes device from the controller.
@@ -39,6 +47,8 @@ class Controller:
         """
         for device in devices:
             if device.id in self._devices:
+                if type(device) in self._devices_by_type:
+                    del self._devices_by_type[type(device)][device.id]
                 del self._devices[device.id]
 
     def get_device(self, value: int) -> Optional[Device]:
@@ -86,8 +96,8 @@ class Controller:
 
     async def initialize(self) -> None:
         """Initializes the controller, by discovering the devices and setting them to the controller."""
-        self.set_devices(await self.discover_devices())
-
+        self.set_devices(*[v for k, v in (await self.discover_devices()).items()])
+        self._initialized = True
 
     @abstractmethod
     async def update_motors(self, *device: CounterMotor) -> None:
@@ -113,7 +123,6 @@ class Controller:
         """
         pass
 
-
     @abstractmethod
     async def update_counters(self, *device: CounterMotor) -> None:
         """
@@ -137,3 +146,19 @@ class Controller:
             The device to update.
         """
         pass
+
+    def get_devices_by_type(self, device_type: Type[Device]) -> List[Device]:
+        """
+        Returns the devices of the controller by type.
+
+        Parameters
+        ----------
+        device_type : str
+            The type of the device to be returned.
+
+        Returns
+        -------
+        List[Device]
+            List of devices with the given type.
+        """
+        return list(self._devices_by_type.get(device_type, dict()).values())

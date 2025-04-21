@@ -1,3 +1,4 @@
+import math
 from typing import Any, Dict, List, Optional, Tuple
 from cvbot.communication.controller import Controller
 from cvtools.logger.logging import logger
@@ -71,19 +72,10 @@ class TxtApiConverter:
             The converted device.
         """
         new_device = None
-        if isinstance(device, Motor):
-            # Create a new TXTApiMotor object with the values from the cvbot Motor object.
-            new_device = TXTApiMotor(
-                name=device.name, enabled=True, values=[device.speed])
-            # Set the direction of the motor based on the speed.
-            if device.speed < 0:
-                new_device.direction = "CCW"
-            else:
-                new_device.direction = "CW"
-        elif isinstance(device, CounterMotor):
+        if isinstance(device, CounterMotor):
             # Create a new TXTApiMotor object with the values from the cvbot CounterMotor object.
             new_motor = TXTApiMotor(
-                name=device.name, enabled=True, values=[device.speed])
+                name=device.name, enabled=True, values=[abs(device.speed)])
             # Set the direction of the motor based on the speed.
             if device.speed < 0:
                 new_motor.direction = "CCW"
@@ -93,6 +85,15 @@ class TxtApiConverter:
             new_counter = TXTApiCounter(
                 name=device.name.replace("M", "C"), enabled=True, digital=True, count=device.count)
             new_device = (new_motor, new_counter)
+        elif isinstance(device, Motor):
+            # Create a new TXTApiMotor object with the values from the cvbot Motor object.
+            new_device = TXTApiMotor(
+                name=device.name, enabled=True, values=[abs(device.speed)])
+            # Set the direction of the motor based on the speed.
+            if device.speed < 0:
+                new_device.direction = "CCW"
+            else:
+                new_device.direction = "CW"
         elif isinstance(device, Servomotor):
             # Create a new TXTApiServomotor object with the values from the cvbot Servomotor object.
             new_device = TXTApiServomotor(
