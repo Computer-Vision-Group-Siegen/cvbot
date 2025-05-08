@@ -1,39 +1,49 @@
+import io
 import time
-from typing import Any, Dict, List, Optional
-from cvbot.communication.controller import Controller
-from cvtools.logger.logging import logger
-import urllib
+from collections.abc import AsyncGenerator
+from typing import Dict, List, Optional
 
-from cvbot.model.device import Device
+import numpy as np
+import PIL
+import PIL.Image
+from cvtools.logger.logging import logger
+from numpy import ndarray
+
+from cvbot.communication.controller import Controller
+from cvbot.model.camera import Camera
 from cvbot.model.counter_motor import CounterMotor
+from cvbot.model.device import Device
 from cvbot.model.servomotor import Servomotor
 
 try:
-    import cvtxtclient
-    from cvtxtclient.api.controller import ControllerAPI as TxtApiControllerAPI
-    from cvtxtclient.api.config import APIConfig
     import aiohttp
+    import cvtxtclient
     from aiohttp import ClientSession
+    from cvtxtclient.api.config import APIConfig
+    from cvtxtclient.api.controller import ControllerAPI as TxtApiControllerAPI
 except ImportError:
     cvtxtclient = None
     logger.warning(
-        "cvtxtclient not found. Is the package installed? TxtApiClient will not be available.")
+        "cvtxtclient not found. Is the package installed? TxtApiClient will not be available."
+    )
     ClientSession = None
-from cvbot.communication.txtapiconverter import TxtApiConverter
 import asyncio
+
+from cvbot.communication.txtapiconverter import TxtApiConverter
 
 
 class TxtApiClient(Controller):
     """TxtApi Client communicates with a TxtAPI controller which is assumed to have all the devices connected."""
 
-    def __init__(self,
-                 host: str,
-                 port: int,
-                 api_key: str = None,
-                 api_base_path: str = "/api/v1",
-                 # type: ignore[valid-type]
-                 session: Optional[ClientSession] = None,
-                 ) -> None:
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        api_key: str = None,
+        api_base_path: str = "/api/v1",
+        # type: ignore[valid-type]
+        session: Optional[ClientSession] = None,
+    ) -> None:
         """Initialize the TxtApiClient with the given parameters.
 
         Parameters
@@ -66,8 +76,10 @@ class TxtApiClient(Controller):
         Dict[int, Device]
             Dictionary of devices found by the discovery process.
         """
+        from cvtxtclient.models.camera_config import CameraConfig as TxtApiCameraConfig
         from cvtxtclient.models.motor import Motor as TxtApiMotor
         from cvtxtclient.models.servomotor import Servomotor as TxtApiServoMotor
+
         max_id = None
         # Get the current max id from the devices in the controller.
         devices = dict()
@@ -75,30 +87,35 @@ class TxtApiClient(Controller):
         # Initialize controller
         await self.api.init_controller_by_id(0)
 
+        ##### Discover actuators #####
         # As the txt api does not support a motor lookup, we need to set the motors to zero speed.
-        api_motors = [TxtApiMotor(enabled=True, values=[
-                                  0], direction="CW", name="M"+str(i)) for i in range(1, 5)]
+        api_motors = [
+            TxtApiMotor(enabled=True, values=[0], direction="CW", name="M" + str(i))
+            for i in range(1, 5)
+        ]
 
-        counter_tasks = [asyncio.create_task(
-            self.api.get_controller_counter_by_id(0, i)) for i in range(1, 5)]
+        counter_tasks = [
+            asyncio.create_task(self.api.get_controller_counter_by_id(0, i))
+            for i in range(1, 5)
+        ]
         await asyncio.gather(*counter_tasks)
 
         for idx, api_motor in enumerate(api_motors):
             counter = counter_tasks[idx].result()
-            motor = self.converter.from_api(
-                (api_motor, counter), max_id=max_id)
+            motor = self.converter.from_api((api_motor, counter), max_id=max_id)
             if max_id is None:
                 max_id = motor.id
             else:
                 max_id = max(max_id, motor.id)
             devices[motor.id] = motor
 
-        api_servo_motors = [TxtApiServoMotor(
-            enabled=True, value=256, name="S"+str(i)) for i in range(1, 4)]
+        api_servo_motors = [
+            TxtApiServoMotor(enabled=True, value=256, name="S" + str(i))
+            for i in range(1, 4)
+        ]
 
         for idx, smot in enumerate(api_servo_motors):
-            motor = self.converter.from_api(
-                smot, max_id=max_id)
+            motor = self.converter.from_api(smot, max_id=max_id)
             if max_id is None:
                 max_id = motor.id
             else:
@@ -106,14 +123,40 @@ class TxtApiClient(Controller):
             devices[motor.id] = motor
 
         # Trigger motor updates in parallel
-        motor_tasks = [asyncio.create_task(self.api.update_controller_motor_by_id(
-            0, motor_id, motor)) for motor_id, motor in enumerate(api_motors, start=1)]
+        motor_tasks = [
+            asyncio.create_task(
+                self.api.update_controller_motor_by_id(0, motor_id, motor)
+            )
+            for motor_id, motor in enumerate(api_motors, start=1)
+        ]
 
-        servo_tasks = [asyncio.create_task(self.api.update_controller_servomotor_by_id(
-            0, motor_id, motor)) for motor_id, motor in enumerate(api_servo_motors, start=1)]
+        servo_tasks = [
+            asyncio.create_task(
+                self.api.update_controller_servomotor_by_id(0, motor_id, motor)
+            )
+            for motor_id, motor in enumerate(api_servo_motors, start=1)
+        ]
 
         await asyncio.gather(*(motor_tasks + servo_tasks))
+
+        ##### Discover sensors #####
+        api_camera = TxtApiCameraConfig()
+        camera = self.converter.from_api(api_camera, max_id=max_id)
+        if max_id is None:
+            max_id = camera.id
+        else:
+            max_id = max(max_id, camera.id)
+        devices[camera.id] = camera
         return devices
+
+    async def open_camera(self, camera: Camera) -> AsyncGenerator[ndarray, None]:
+        try:
+            await asyncio.wait_for(self.api.start_camera(self.converter.to_api(camera)), timeout=10)
+            async for frame_bytes in self.api.camera_image_stream():
+                pil_image = PIL.Image.open(io.BytesIO(frame_bytes)).convert("RGB")
+                yield np.array(pil_image)
+        finally:
+            await asyncio.wait_for(self.api.stop_camera(), timeout=10)
 
     async def update_motors(self, *device: CounterMotor) -> None:
         """
@@ -127,8 +170,11 @@ class TxtApiClient(Controller):
         tasks = []
         for dev in device:
             mot, cnt = self.converter.to_api(dev)
-            tasks.append(asyncio.create_task(self.api.update_controller_motor_by_id(
-                0, dev.name[-1], mot)))
+            tasks.append(
+                asyncio.create_task(
+                    self.api.update_controller_motor_by_id(0, dev.name[-1], mot)
+                )
+            )
         return await asyncio.gather(*tasks)
 
     async def update_servomotors(self, *device: Servomotor) -> None:
@@ -143,8 +189,11 @@ class TxtApiClient(Controller):
         tasks = []
         for dev in device:
             smot = self.converter.to_api(dev)
-            tasks.append(asyncio.create_task(self.api.update_controller_servomotor_by_id(
-                0, dev.name[-1], smot)))
+            tasks.append(
+                asyncio.create_task(
+                    self.api.update_controller_servomotor_by_id(0, dev.name[-1], smot)
+                )
+            )
         await asyncio.gather(*tasks)
 
     async def update_counters(self, *device: CounterMotor) -> None:
@@ -159,8 +208,11 @@ class TxtApiClient(Controller):
         tasks = []
         for dev in device:
             mot, cnt = self.converter.to_api(dev)
-            tasks.append(asyncio.create_task(self.api.update_controller_counter_by_id(
-                0, dev.name[-1], cnt)))
+            tasks.append(
+                asyncio.create_task(
+                    self.api.update_controller_counter_by_id(0, dev.name[-1], cnt)
+                )
+            )
         await asyncio.gather(*tasks)
 
     async def read_counters(self, *device: CounterMotor) -> List[CounterMotor]:
@@ -174,16 +226,25 @@ class TxtApiClient(Controller):
         """
         tasks = []
         for dev in device:
-            tasks.append(asyncio.create_task(self.api.get_controller_counter_by_id(
-                0, dev.name[-1])))
+            tasks.append(
+                asyncio.create_task(
+                    self.api.get_controller_counter_by_id(0, dev.name[-1])
+                )
+            )
         await asyncio.gather(*tasks)
         ret = []
         for task in tasks:
             cnt = task.result()
             # Find corresponding motor
             mname = cnt.name.replace("C", "M")
-            motor = next((m for m in self._devices.values() if m.name ==
-                         mname and isinstance(m, CounterMotor)), None)
+            motor = next(
+                (
+                    m
+                    for m in self._devices.values()
+                    if m.name == mname and isinstance(m, CounterMotor)
+                ),
+                None,
+            )
             if motor is not None:
                 motor.last_count = motor.count
                 motor.last_recorded_at = motor.recorded_at

@@ -1,12 +1,14 @@
-from cvbot.communication.controller import Controller
-from cvbot.model.counter_motor import CounterMotor
+from collections.abc import AsyncGenerator
+
 import numpy as np
-from dataclasses import dataclass, field
+
+from cvbot.communication.controller import Controller
 from cvbot.config.drive_robot_configuration import DriveRobotConfiguration
+from cvbot.model.camera import Camera
+from cvbot.model.counter_motor import CounterMotor
 
 
 class EasyDriveController:
-
     def __init__(self, control: Controller, config: DriveRobotConfiguration):
         self.control = control
         self.config = config
@@ -26,6 +28,20 @@ class EasyDriveController:
         _ = self.config.kinematic_matrix
         return True
 
+    async def camera(self) -> AsyncGenerator[np.ndarray]:
+        """
+        Returns a stream of camera frames.
+        The frames are of shape (3,H,W) and of dtype float32 with values in [0,1].
+
+        Returns
+        -------
+        AsyncGenerator
+            A generator that yields the camera frames.
+        """
+        # Set all motors to the same speed.
+        camera = self.control.get_devices_by_type(Camera)[0]
+        async for frame in self.control.open_camera(camera):
+            yield frame
 
     async def straight(self, speed: int) -> bool:
         """
@@ -46,9 +62,10 @@ class EasyDriveController:
         motors = self.control.get_devices_by_type(CounterMotor)
         # Sort according to the motor configuration.
         motors = sorted(
-            motors, key=lambda x: self.config.drive_motor_names.index(x.name))
+            motors, key=lambda x: self.config.drive_motor_names.index(x.name)
+        )
 
-        v = np.array([0., speed, 0], dtype=self.config.dtype)
+        v = np.array([0.0, speed, 0], dtype=self.config.dtype)
         K = self.config.kinematic_matrix
 
         w = K @ v
@@ -82,7 +99,8 @@ class EasyDriveController:
         motors = self.control.get_devices_by_type(CounterMotor)
         # Sort according to the motor configuration.
         motors = sorted(
-            motors, key=lambda x: self.config.drive_motor_names.index(x.name))
+            motors, key=lambda x: self.config.drive_motor_names.index(x.name)
+        )
 
         v = np.array([speed, 0, 0], dtype=self.config.dtype)
         K = self.config.kinematic_matrix
@@ -121,7 +139,8 @@ class EasyDriveController:
         motors = self.control.get_devices_by_type(CounterMotor)
         # Sort according to the motor configuration.
         motors = sorted(
-            motors, key=lambda x: self.config.drive_motor_names.index(x.name))
+            motors, key=lambda x: self.config.drive_motor_names.index(x.name)
+        )
 
         v = np.array([speed_side, speed_forward, 0], dtype=self.config.dtype)
         K = self.config.kinematic_matrix
@@ -155,9 +174,10 @@ class EasyDriveController:
         motors = self.control.get_devices_by_type(CounterMotor)
         # Sort according to the motor configuration.
         motors = sorted(
-            motors, key=lambda x: self.config.drive_motor_names.index(x.name))
+            motors, key=lambda x: self.config.drive_motor_names.index(x.name)
+        )
 
-        v = np.array([0., 0., speed], dtype=self.config.dtype)
+        v = np.array([0.0, 0.0, speed], dtype=self.config.dtype)
         K = self.config.kinematic_matrix
 
         w = K @ v
@@ -190,7 +210,8 @@ class EasyDriveController:
         motors = self.control.get_devices_by_type(CounterMotor)
         # Sort according to the motor configuration.
         motors = sorted(
-            motors, key=lambda x: self.config.drive_motor_names.index(x.name))
+            motors, key=lambda x: self.config.drive_motor_names.index(x.name)
+        )
         # Set the speed of each motor.
         K = self.config.kinematic_matrix
         w = K @ speeds
@@ -218,7 +239,8 @@ class EasyDriveController:
         motors = self.control.get_devices_by_type(CounterMotor)
         # Sort according to the motor configuration.
         motors = sorted(
-            motors, key=lambda x: self.config.drive_motor_names.index(x.name))
+            motors, key=lambda x: self.config.drive_motor_names.index(x.name)
+        )
 
         for motor in motors:
             motor.speed = 0

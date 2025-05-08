@@ -12,6 +12,7 @@ pydantic = "^2.11.3"
 cvtools = { path = "../cvtools", develop = true }
 cvtxtclient = { path = "../cvtxtclient", develop = true }
 toml = "^0.10.2"
+pillow = "^11.2.1"
 
 
 [tool.poetry.group.api.dependencies]

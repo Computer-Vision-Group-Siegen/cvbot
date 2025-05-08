@@ -3,6 +3,7 @@ from cvbot.communication.txtapiclient import TxtApiClient
 from cvbot.controller.easy_drive_controller import EasyDriveController
 from cvbot.config.drive_robot_configuration import DriveRobotConfiguration
 import os
+import numpy as np
 from ..conftest import session
 from ..communication.test_txtapiclient import api_client
 import asyncio
@@ -14,6 +15,26 @@ async def drive_controller(api_client: TxtApiClient) -> EasyDriveController:
     """Create a EasyDriveController instance."""
     await api_client.initialize()
     return EasyDriveController(api_client, DriveRobotConfiguration())
+
+
+@pytest.mark.asyncio
+async def test_camera(drive_controller: EasyDriveController):
+    """Test the discovery of the TxtApiClient."""
+    iter_ = drive_controller.camera()
+    frame1 = await anext(iter_)
+    assert frame1 is not None
+    assert frame1.shape == (3, 480, 640)
+    assert frame1.dtype == np.float32
+    assert frame1.min() >= 0.0
+    assert frame1.max() <= 1.0
+    await asyncio.sleep(2)
+    frame2 = await anext(iter_)
+    assert frame2 is not None
+    assert frame2.shape == (3, 480, 640)
+    assert frame2.dtype == np.float32
+    assert frame2.min() >= 0.0
+    assert frame2.max() <= 1.0
+    return True
 
 
 @pytest.mark.asyncio

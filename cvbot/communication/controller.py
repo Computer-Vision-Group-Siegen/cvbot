@@ -1,8 +1,12 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from collections.abc import AsyncGenerator
 from typing import Any, Dict, List, Optional, Type
-from pydantic import BaseModel, Field
+
+import numpy as np
+
 from cvbot.model.counter_motor import CounterMotor
 from cvbot.model.device import Device
+from cvbot.model.sensor import Sensor
 from cvbot.model.servomotor import Servomotor
 
 
@@ -98,6 +102,17 @@ class Controller:
         """Initializes the controller, by discovering the devices and setting them to the controller."""
         self.set_devices(*[v for k, v in (await self.discover_devices()).items()])
         self._initialized = True
+
+    @abstractmethod
+    async def open_sensor(self, *device: Sensor) -> AsyncGenerator[np.ndarray]:
+        """Opens a sensor stream.
+
+        Returns
+        -------
+        AsyncGenerator
+            A generator that yields sensor values.
+        """
+        pass
 
     @abstractmethod
     async def update_motors(self, *device: CounterMotor) -> None:

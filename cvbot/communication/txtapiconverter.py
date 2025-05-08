@@ -1,27 +1,25 @@
-import math
-from typing import Any, Dict, List, Optional, Tuple
-from cvbot.communication.controller import Controller
-from cvtools.logger.logging import logger
-import urllib
+from typing import Any, Optional
 
+from cvbot.model.camera import Camera
+from cvbot.model.counter_motor import CounterMotor
 from cvbot.model.device import Device
 from cvbot.model.motor import Motor
-from cvbot.model.counter_motor import CounterMotor
 from cvbot.model.servomotor import Servomotor
+
 try:
-    import cvtxtclient
-    from cvtxtclient.api.controller import ControllerAPI as TxtApiControllerAPI
-    from cvtxtclient.api.config import APIConfig
-    from cvtxtclient.models.output import Output as TXTApiOutput
-    from cvtxtclient.models.motor import Motor as TXTApiMotor
-    from cvtxtclient.models.counter import Counter as TXTApiCounter
-    from cvtxtclient.models.servomotor import Servomotor as TXTApiServomotor
     import aiohttp
+    import cvtxtclient
     from aiohttp import ClientSession
+    from cvtxtclient.api.config import APIConfig
+    from cvtxtclient.api.controller import ControllerAPI as TxtApiControllerAPI
+    from cvtxtclient.models.camera_config import CameraConfig as TXTApiCameraConfig
+    from cvtxtclient.models.counter import Counter as TXTApiCounter
+    from cvtxtclient.models.motor import Motor as TXTApiMotor
+    from cvtxtclient.models.output import Output as TXTApiOutput
+    from cvtxtclient.models.servomotor import Servomotor as TXTApiServomotor
 except ImportError:
     cvtxtclient = None
     ClientSession = None
-from cvbot.model.device import Device
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -29,7 +27,6 @@ if TYPE_CHECKING:
 else:
     TxtApiClient = Any
 
-import copy
 import time
 
 
@@ -98,6 +95,8 @@ class TxtApiConverter:
             # Create a new TXTApiServomotor object with the values from the cvbot Servomotor object.
             new_device = TXTApiServomotor(
                 name=device.name, enabled=True, value=device.position)
+        elif isinstance(device, Camera):
+            new_device = TXTApiCameraConfig(fps=device.fps, width=device.width, height=device.height)
         return new_device
 
     def from_api(self, device: Any, max_id: Optional[int] = None) -> Device:
@@ -152,6 +151,14 @@ class TxtApiConverter:
 
             # Update the device with the values from the API.
             mapped_device.position = device.value
+        elif isinstance(device, TXTApiCameraConfig):
+            device: TXTApiCameraConfig
+            # Check if there is a device with the same name, then use the id of the device.
+            mapped_device = next((x for x in self.client._devices if isinstance(x, Camera)), None)
+            if not mapped_device:
+                # Create a new device with a new id.
+                new_id = self.get_new_id(max_id)
+                mapped_device = Camera(id=new_id, width=device.width, height=device.height, fps=device.fps)
         else:
             raise ValueError(f"Unsupported device type: {type(device)}")
         return mapped_device
