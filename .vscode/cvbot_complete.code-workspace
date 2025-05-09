@@ -1,23 +1,25 @@
 {
-  "folders": [
-	{
-		"path": "../../txtapi"
-	},
-	{
-		"path": "../../ft-txt"
-	},
-	{
-		"path": "../../cvtxtclient"
-	},
-	{
-		"path": ".."
-	},
-	{
-		"path": "../../cvtools"
-	},
-	{
-		"path": "../../tools"
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../cvtools"
+		},
+		{
+			"path": "../../ft-txtapi"
+		},
+		{
+			"path": "../../ft-txt"
+		},
+		{
+			"path": "../../cvtxtclient"
+		},
+		{
+			"path": "../../tools"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "cvtxtclient"
 	}
-],
-  "settings": {}
 }

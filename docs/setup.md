@@ -10,6 +10,9 @@ List of already operational / configured robots:
 | Number | Hostname | Color | AP-MAC-Address    | AP-SSID      |
 | ------ | -------- | ----- | ----------------- | ------------ |
 | 0.     | cvblack  | black | 80:18:01:00:00:00 | cv-bot-black |
+| 1.     | cvorange | red   | 80:18:01:00:00:01 | cv-bot-orange|
+| 2.     | cvbrown  | brown | 80:18:01:00:00:02 | cv-bot-brown |
+| 3.     | cvwhite  | white | 80:18:01:00:00:03 | cv-bot-white |
 
 ## 1. Install the operating system
 
@@ -19,7 +22,7 @@ Download the respberry pi imager and install it on your computer. You can find t
 https://www.raspberrypi.com/software/
 
 Use the latest version of the Raspberry Pi OS, preferably the 64 bit version.
-Contiue with the installer and activate Wifi, and SSH during the process.
+Continue with the installer and activate Wifi, and SSH during the process.
 
 By convention, the hostname should be 'cv-[color]' where [color] is the color for identifying the robot.
 For example, 'cv-red' for a red robot.

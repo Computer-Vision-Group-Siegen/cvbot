@@ -9,6 +9,9 @@ from cvbot.model.counter_motor import CounterMotor
 
 
 class EasyDriveController:
+    """This class is a wrapper around the controller to make it easier to use.
+    """
+
     def __init__(self, control: Controller, config: DriveRobotConfiguration):
         self.control = control
         self.config = config
