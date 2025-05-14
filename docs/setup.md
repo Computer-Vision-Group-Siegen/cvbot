@@ -341,6 +341,16 @@ sudo systemctl start nftables && sudo systemctl enable nftables
 
 Now, internet connection should be available for the devices connected to the access point. If one wants to reach devices from the wlan0 interface (e.g. for initial ssh connections), one needs to set up dedicated forwarding rules for the corresponding devices.
 
+### 2.3 Create new user
+
+Create a new user named student:
+
+```bash
+sudo useradd -m student
+sudo passwd student
+sudo usermod -g users student
+```
+
 ## 3. Install frameworks and software
 
 This section describes the installation of the frameworks and software needed for the robot.
